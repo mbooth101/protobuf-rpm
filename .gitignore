@@ -1,0 +1,7 @@
+.build-*.log
+*/results_*/
+*/*-build/
+x86_64/
+noarch/
+*.src.rpm
+*.buildreqs.nosrc.rpm
