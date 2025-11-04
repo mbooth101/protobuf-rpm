@@ -1,14 +1,3 @@
-# Build -python subpackage
-%bcond_without python
-# Build -python subpackage with C++. This significantly improves performance
-# compared to the pure-Python implementation.
-%if v"0%{?python3_version}" >= v"3.14"
-# TypeError: Metaclasses with custom tp_new are not supported
-# https://bugzilla.redhat.com/show_bug.cgi?id=2343969
-%bcond_with python_cpp
-%else
-%bcond_without python_cpp
-%endif
 # Build -java subpackage
 %if %{defined rhel}
 %bcond_with java
@@ -25,7 +14,7 @@ Name:           protobuf
 # “patch” updates of protobuf.
 Version:        3.19.6
 %global so_version 30
-Release:        19%{?dist}
+Release:        20%{?dist}
 
 # The entire source is BSD-3-Clause, except the following files, which belong
 # to the build system; are unpackaged maintainer utility scripts; or are used
@@ -84,11 +73,6 @@ Patch2:         disable-tests-on-32-bit-systems.patch
 # throws java.lang.ClassFormatError accessible: module java.base does not "opens java.lang" to unnamed module @12d5624a
 #	at com.google.protobuf.ServiceTest.testGetPrototype(ServiceTest.java:107)
 Patch3:         protobuf-3.19.4-jre17-add-opens.patch
-# Backport upstream commit da973aff2adab60a9e516d3202c111dbdde1a50f:
-#   Fix build with Python 3.11
-#
-#   The PyFrameObject structure members have been removed from the public C API.
-Patch4:         protobuf-3.19.4-python3.11.patch
 # Backport upstream commit 9252b64ef3887e869999752010d553f068338a60:
 #   Automated rollback of commit 0ee34de
 Patch5:         protobuf-3.19.6-jre21.patch
@@ -186,23 +170,6 @@ The "optimize_for = LITE_RUNTIME" option causes the compiler to generate code
 which only depends libprotobuf-lite, which is much smaller than libprotobuf but
 lacks descriptors, reflection, and some other features.
 
-%if %{with python}
-%package -n python3-protobuf
-Summary:        Python bindings for Google Protocol Buffers
-BuildRequires:  python3-devel
-%if %{with python_cpp}
-Requires:       protobuf%{?_isa} = %{version}-%{release}
-%else
-BuildArch:      noarch
-%endif
-Conflicts:      protobuf-compiler > %{version}
-Conflicts:      protobuf-compiler < %{version}
-Provides:       protobuf-python3 = %{version}-%{release}
-
-%description -n python3-protobuf
-This package contains Python libraries for Google Protocol Buffers
-%endif
-
 %package vim
 Summary:        Vim syntax highlighting for Google Protocol Buffers descriptions
 BuildArch:      noarch
@@ -298,7 +265,6 @@ descriptions in the Emacs editor.
 %patch 2 -p0
 %endif
 %patch 3 -p1 -b .jre17
-%patch 4 -p1 -b .python311
 %patch 5 -p1 -b .jre21
 %patch 6 -p1 -b .gcc15
 
@@ -335,10 +301,6 @@ find -name '*.java' | xargs sed -ri \
 
 rm -f src/solaris/libstdc++.la
 
-%generate_buildrequires
-cd python
-%pyproject_buildrequires
-
 %build
 iconv -f iso8859-1 -t utf-8 CONTRIBUTORS.txt > CONTRIBUTORS.txt.utf8
 mv CONTRIBUTORS.txt.utf8 CONTRIBUTORS.txt
@@ -352,12 +314,6 @@ export PTHREAD_LIBS="-lpthread"
 #     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95148
 #  (also set in %%check)
 %make_build CXXFLAGS="%{build_cxxflags} -Wno-error=type-limits"
-
-%if %{with python}
-pushd python
-%pyproject_wheel %{?with_python_cpp:-C--global-option=--cpp_implementation}
-popd
-%endif
 
 %if %{with java}
 %ifarch %{java_arches}
@@ -376,10 +332,6 @@ export MAVEN_OPTS=-Xmx1024m
 
 %check
 %make_build check CXXFLAGS="%{build_cxxflags} -Wno-error=type-limits"
-%if %{with python_cpp}
-export LD_LIBRARY_PATH=%{buildroot}%{_libdir}
-%endif
-%pyproject_check_import -e '*json_format_proto3_pb2' %{!?with_python_cpp:-e '*.pyext*'}
 
 
 %install
@@ -389,15 +341,6 @@ find %{buildroot} -type f -name "*.la" -exec rm -f {} +
 # protoc.1 man page
 install -p -m 0644 -D -t '%{buildroot}%{_mandir}/man1' '%{SOURCE4}'
 
-%if %{with python}
-pushd python
-%pyproject_install
-%pyproject_save_files -L google
-%if %{without python_cpp}
-find %{buildroot}%{python3_sitelib} -name \*.py -exec sed -i -e '1{\@^#!@d}' {} +
-%endif
-popd
-%endif
 install -p -m 644 -D %{SOURCE1} %{buildroot}%{_datadir}/vim/vimfiles/ftdetect/proto.vim
 install -p -m 644 -D editors/proto.vim %{buildroot}%{_datadir}/vim/vimfiles/syntax/proto.vim
 
@@ -446,18 +389,6 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 %{_libdir}/libprotobuf-lite.so
 %{_libdir}/pkgconfig/protobuf-lite.pc
 
-%if %{with python}
-%files -n python3-protobuf -f %{pyproject_files}
-%if %{with python_cpp}
-%{python3_sitearch}/protobuf-%{version}%{?rcver}-py3.*-nspkg.pth
-%else
-%{python3_sitelib}/protobuf-%{version}%{?rcver}-py3.*-nspkg.pth
-%endif
-%license LICENSE
-%doc python/README.md
-%doc examples/add_person.py examples/list_people.py examples/addressbook.proto
-%endif
-
 %files vim
 %license LICENSE
 %{_datadir}/vim/vimfiles/ftdetect/proto.vim
@@ -491,6 +422,10 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 
 
 %changelog
+* Tue Nov 04 2025 Mat Booth <mat.booth@gmail.com> - 3.19.6-20
+- Remove python machinery, python binaries now shipped in separate
+  python-protobuf package
+
 * Sun Sep 28 2025 Yaakov Selkowitz <yselkowi@redhat.com> - 3.19.6-19
 - Rebuilt for java-25-openjdk as system jdk
 
