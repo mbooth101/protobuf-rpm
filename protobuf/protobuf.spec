@@ -53,6 +53,9 @@ Source2:        protobuf-init.el
 # --help” output.
 Source3:        protoc.1
 
+# Restore maven build for java bindings that upstream removed in favour of bazel
+# - poms are based on the last release that supported maven build, updated for this release
+Patch1:         restore-maven-build.patch
 # Disable tests that are failing on 32bit systems
 Patch2:         disable-tests-on-32-bit-systems.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=2051202
@@ -168,25 +171,28 @@ descriptions in Vim editor
 
 %package java
 Summary:        Java Protocol Buffers runtime library
+Version:        %{pb_java}.%{pb_version}
 BuildArch:      noarch
 BuildRequires:  maven-local-openjdk25
+BuildRequires:  mvn(com.google.code.findbugs:jsr305)
 BuildRequires:  mvn(com.google.code.gson:gson)
 BuildRequires:  mvn(com.google.guava:guava)
 BuildRequires:  mvn(com.google.guava:guava-testlib)
 BuildRequires:  mvn(junit:junit)
 BuildRequires:  mvn(org.apache.felix:maven-bundle-plugin)
 BuildRequires:  mvn(org.apache.maven.plugins:maven-antrun-plugin)
-BuildRequires:  mvn(org.apache.maven.plugins:maven-source-plugin)
 BuildRequires:  mvn(org.codehaus.mojo:build-helper-maven-plugin)
-BuildRequires:  mvn(org.easymock:easymock)
-Conflicts:      protobuf-compiler > %{version}
-Conflicts:      protobuf-compiler < %{version}
+BuildRequires:  mvn(org.mockito:mockito-core)
+# To be used only with the protobuf compiler of the same version
+Conflicts:      protobuf-compiler > %{pb_version}
+Conflicts:      protobuf-compiler < %{pb_version}
 
 %description java
 This package contains Java Protocol Buffers runtime library.
 
 %package javalite
 Summary:        Java Protocol Buffers lite runtime library
+Version:        %{pb_java}.%{pb_version}
 BuildArch:      noarch
 
 %description javalite
@@ -194,6 +200,7 @@ This package contains Java Protocol Buffers lite runtime library.
 
 %package java-util
 Summary:        Utilities for Protocol Buffers
+Version:        %{pb_java}.%{pb_version}
 BuildArch:      noarch
 
 %description java-util
@@ -202,6 +209,7 @@ as well as utilities to work with proto3 well-known types.
 
 %package javadoc
 Summary:        Javadoc for protobuf-java
+Version:        %{pb_java}.%{pb_version}
 BuildArch:      noarch
 
 %description javadoc
@@ -209,6 +217,7 @@ This package contains the API documentation for protobuf-java.
 
 %package parent
 Summary:        Protocol Buffer Parent POM
+Version:        %{pb_java}.%{pb_version}
 BuildArch:      noarch
 
 %description parent
@@ -216,6 +225,7 @@ Protocol Buffer Parent POM.
 
 %package bom
 Summary:        Protocol Buffer BOM POM
+Version:        %{pb_java}.%{pb_version}
 BuildArch:      noarch
 
 %description bom
@@ -235,6 +245,7 @@ descriptions in the Emacs editor.
 
 %prep
 %setup -q -n protobuf-%{pb_source}
+%patch 1 -p1 -b .maven
 %ifarch %{ix86}
 # Need to disable more tests that fail on 32bit arches only
 %patch 2 -p0
@@ -243,7 +254,6 @@ descriptions in the Emacs editor.
 %patch 6 -p1 -b .gcc15
 %patch 7 -p1 -b .if-constexpr
 %patch 8 -p1 -b .link-error
-%patch 9 -p1 -b .no-libutf8_range
 
 # Remove a test that fails
 sed -i -e '/command_line_interface_unittest/d' src/file_lists.cmake
@@ -253,9 +263,12 @@ find examples -type f | xargs chmod 0644
 
 %if %{with java}
 %ifarch %{java_arches}
-%pom_remove_dep com.google.errorprone:error_prone_annotations java/util/pom.xml
-%pom_remove_dep com.google.j2objc:j2objc-annotations java/util/pom.xml
-%pom_remove_dep com.google.truth:truth java/pom.xml java/{core,lite,util}/pom.xml
+pushd java
+%pom_remove_dep com.google.errorprone:error_prone_annotations util
+%pom_remove_dep com.google.j2objc:j2objc-annotations util
+%pom_remove_dep com.google.truth:truth . core lite util
+%pom_remove_plugin :animal-sniffer-maven-plugin . util
+popd
 
 # Remove annotation libraries we don't have
 annotations=$(
@@ -266,9 +279,6 @@ annotations=$(
 )
 find -name '*.java' | xargs sed -ri \
     "s/^import .*\.($annotations);//;s/@($annotations)"'\>\s*(\((("[^"]*")|([^)]*))\))?//g'
-
-# Make OSGi dependency on sun.misc package optional
-%pom_xpath_inject "pom:configuration/pom:instructions" "<Import-Package>sun.misc;resolution:=optional,*</Import-Package>" java/core
 
 # Backward compatibility symlink
 %mvn_file :protobuf-java:jar: protobuf/protobuf-java protobuf
@@ -297,10 +307,9 @@ mv CONTRIBUTORS.txt.utf8 CONTRIBUTORS.txt
 %ifarch %{ix86} s390x
 export MAVEN_OPTS=-Xmx1024m
 %endif
-%pom_disable_module kotlin java/pom.xml
-%pom_disable_module kotlin-lite java/pom.xml
-# tests require com.google.truth:truth even to build
-%mvn_build -s -- -f java/pom.xml -Dmaven.test.skip=true
+export PROTOC=$(pwd)/%_vpath_builddir/protoc
+# Skip tests due to missing BR on com.google.truth:truth
+%mvn_build -s -- -f java/pom.xml -Dprotoc=$PROTOC -Dmaven.test.skip=true
 %endif
 %endif
 
@@ -359,6 +368,8 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 %files devel
 %dir %{_includedir}/google
 %{_includedir}/google/protobuf/
+%exclude %{_includedir}/google/protobuf/*.proto
+%exclude %{_includedir}/google/protobuf/compiler/*.proto
 %{_includedir}/upb/
 %{_includedir}/upb_generator/
 %{_includedir}/utf8_range.h
@@ -426,6 +437,7 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 - Install *.proto headers with compiler, which should be usable
   without the C++ devel package installed
 - Drop some ancient obsoletes and unnecessary requires
+- Restore maven build of java bindings
 
 * Sun Sep 28 2025 Yaakov Selkowitz <yselkowi@redhat.com> - 3.19.6-19
 - Rebuilt for java-25-openjdk as system jdk

@@ -1,0 +1,757 @@
+From b65ba3caaf5a2f2cc0d4427b5e8f82c28c335624 Mon Sep 17 00:00:00 2001
+From: Mat Booth <mat.booth@gmail.com>
+Date: Wed, 5 Nov 2025 13:56:32 +0000
+Subject: [PATCH] restore maven build
+
+---
+ java/core/generate-test-sources-build.xml |   1 +
+ java/core/pom.xml                         | 164 ++++++++++
+ java/lite/pom.xml                         | 358 ++++++++++++++++++++++
+ java/pom.xml                              |   2 -
+ java/util/pom.xml                         | 173 +++++++++++
+ 5 files changed, 696 insertions(+), 2 deletions(-)
+ create mode 100644 java/core/pom.xml
+ create mode 100644 java/lite/pom.xml
+ create mode 100644 java/util/pom.xml
+
+diff --git a/java/core/generate-test-sources-build.xml b/java/core/generate-test-sources-build.xml
+index 66e841561..955493962 100644
+--- a/java/core/generate-test-sources-build.xml
++++ b/java/core/generate-test-sources-build.xml
+@@ -3,6 +3,7 @@
+     <exec executable="${protoc}">
+         <arg value="--java_out=${generated.testsources.dir}"/>
+         <arg value="--proto_path=${protobuf.source.dir}"/>
++        <arg value="--proto_path=${protobuf.java_source.dir}"/>
+         <arg value="--proto_path=${test.proto.dir}"/>
+         <arg value="${protobuf.source.dir}/google/protobuf/map_lite_unittest.proto"/>
+         <arg value="${protobuf.source.dir}/google/protobuf/unittest.proto"/>
+diff --git a/java/core/pom.xml b/java/core/pom.xml
+new file mode 100644
+index 000000000..5192a2f30
+--- /dev/null
++++ b/java/core/pom.xml
+@@ -0,0 +1,164 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++  <parent>
++    <groupId>com.google.protobuf</groupId>
++    <artifactId>protobuf-parent</artifactId>
++    <version>4.29.5</version>
++  </parent>
++
++  <artifactId>protobuf-java</artifactId>
++  <packaging>bundle</packaging>
++
++  <name>Protocol Buffers [Core]</name>
++  <description>
++    Core Protocol Buffers library. Protocol Buffers are a way of encoding structured data in an
++    efficient yet extensible format.
++  </description>
++
++  <dependencies>
++    <dependency>
++      <groupId>junit</groupId>
++      <artifactId>junit</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.mockito</groupId>
++      <artifactId>mockito-core</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.guava</groupId>
++      <artifactId>guava</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.truth</groupId>
++      <artifactId>truth</artifactId>
++      <scope>test</scope>
++    </dependency>
++  </dependencies>
++
++  <build>
++    <!-- Include core protos in the bundle as resources -->
++    <resources>
++      <resource>
++        <directory>${protobuf.source.dir}</directory>
++        <includes>
++          <include>google/protobuf/any.proto</include>
++          <include>google/protobuf/api.proto</include>
++          <include>google/protobuf/descriptor.proto</include>
++          <include>google/protobuf/duration.proto</include>
++          <include>google/protobuf/empty.proto</include>
++          <include>google/protobuf/field_mask.proto</include>
++          <include>google/protobuf/source_context.proto</include>
++          <include>google/protobuf/struct.proto</include>
++          <include>google/protobuf/timestamp.proto</include>
++          <include>google/protobuf/type.proto</include>
++          <include>google/protobuf/wrappers.proto</include>
++          <include>google/protobuf/compiler/plugin.proto</include>
++        </includes>
++      </resource>
++      <resource>
++        <directory>${protobuf.java_source.dir}</directory>
++        <includes>
++          <include>google/protobuf/java_features.proto</include>
++        </includes>
++      </resource>
++    </resources>
++    <testResources>
++      <testResource>
++        <directory>${protobuf.source.dir}</directory>
++        <includes>
++          <include>google/protobuf/testdata/golden_message_oneof_implemented</include>
++          <include>google/protobuf/testdata/golden_packed_fields_message</include>
++        </includes>
++      </testResource>
++    </testResources>
++
++    <plugins>
++      <!-- Use Antrun plugin to generate sources with protoc -->
++      <plugin>
++        <artifactId>maven-antrun-plugin</artifactId>
++        <executions>
++          <!-- Generate core protos -->
++          <execution>
++            <id>generate-sources</id>
++            <phase>generate-sources</phase>
++            <configuration>
++              <target>
++                <ant antfile="generate-sources-build.xml"/>
++              </target>
++            </configuration>
++            <goals>
++              <goal>run</goal>
++            </goals>
++          </execution>
++
++          <!-- Generate the test protos -->
++          <execution>
++            <id>generate-test-sources</id>
++            <phase>generate-test-sources</phase>
++            <configuration>
++              <target>
++                <ant antfile="generate-test-sources-build.xml"/>
++              </target>
++            </configuration>
++            <goals>
++              <goal>run</goal>
++            </goals>
++          </execution>
++        </executions>
++      </plugin>
++
++      <!-- Add the generated sources to the build -->
++      <plugin>
++        <groupId>org.codehaus.mojo</groupId>
++        <artifactId>build-helper-maven-plugin</artifactId>
++        <executions>
++          <execution>
++            <id>add-generated-sources</id>
++            <phase>generate-sources</phase>
++            <goals>
++              <goal>add-source</goal>
++            </goals>
++            <configuration>
++              <sources>
++                <source>${generated.sources.dir}</source>
++              </sources>
++            </configuration>
++          </execution>
++          <execution>
++            <id>add-generated-test-sources</id>
++            <phase>generate-test-sources</phase>
++            <goals>
++              <goal>add-test-source</goal>
++            </goals>
++            <configuration>
++              <sources>
++                <source>${generated.testsources.dir}</source>
++              </sources>
++            </configuration>
++          </execution>
++        </executions>
++      </plugin>
++
++      <!-- OSGI bundle configuration -->
++      <plugin>
++        <groupId>org.apache.felix</groupId>
++        <artifactId>maven-bundle-plugin</artifactId>
++        <extensions>true</extensions>
++        <configuration>
++          <instructions>
++            <Automatic-Module-Name>com.google.protobuf</Automatic-Module-Name> <!-- Java9+ Jigsaw module name -->
++            <Bundle-DocURL>https://developers.google.com/protocol-buffers/</Bundle-DocURL>
++            <Bundle-SymbolicName>com.google.protobuf</Bundle-SymbolicName>
++            <Export-Package>com.google.protobuf;version=${project.version}</Export-Package>
++            <Import-Package>sun.misc;resolution:=optional,*</Import-Package>
++          </instructions>
++        </configuration>
++      </plugin>
++    </plugins>
++  </build>
++
++</project>
+diff --git a/java/lite/pom.xml b/java/lite/pom.xml
+new file mode 100644
+index 000000000..0e11fcc26
+--- /dev/null
++++ b/java/lite/pom.xml
+@@ -0,0 +1,358 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++  <parent>
++    <groupId>com.google.protobuf</groupId>
++    <artifactId>protobuf-parent</artifactId>
++    <version>4.29.5</version>
++  </parent>
++
++  <artifactId>protobuf-javalite</artifactId>
++  <packaging>bundle</packaging>
++
++  <name>Protocol Buffers [Lite]</name>
++  <description>
++    Lite version of Protocol Buffers library. This version is optimized for code size, but does
++    not guarantee API/ABI stability.
++  </description>
++
++  <dependencies>
++    <dependency>
++      <groupId>junit</groupId>
++      <artifactId>junit</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>org.mockito</groupId>
++      <artifactId>mockito-core</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.guava</groupId>
++      <artifactId>guava</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.truth</groupId>
++      <artifactId>truth</artifactId>
++      <scope>test</scope>
++    </dependency>
++  </dependencies>
++
++  <build>
++     <!-- Include core protos in the bundle as resources -->
++     <resources>
++      <resource>
++        <directory>${protobuf.source.dir}</directory>
++        <includes>
++          <include>google/protobuf/any.proto</include>
++          <include>google/protobuf/api.proto</include>
++          <include>google/protobuf/descriptor.proto</include>
++          <include>google/protobuf/duration.proto</include>
++          <include>google/protobuf/empty.proto</include>
++          <include>google/protobuf/field_mask.proto</include>
++          <include>google/protobuf/source_context.proto</include>
++          <include>google/protobuf/struct.proto</include>
++          <include>google/protobuf/timestamp.proto</include>
++          <include>google/protobuf/type.proto</include>
++          <include>google/protobuf/wrappers.proto</include>
++        </includes>
++      </resource>
++      <resource>
++        <directory>${protobuf.java_source.dir}</directory>
++        <includes>
++          <include>google/protobuf/java_features.proto</include>
++        </includes>
++      </resource>
++    </resources>
++    <testResources>
++      <testResource>
++        <directory>${protobuf.source.dir}</directory>
++        <includes>
++          <include>google/protobuf/testdata/golden_message_oneof_implemented</include>
++          <include>google/protobuf/testdata/golden_packed_fields_message</include>
++        </includes>
++      </testResource>
++    </testResources>
++
++    <plugins>
++      <plugin>
++        <artifactId>maven-resources-plugin</artifactId>
++        <version>3.1.0</version>
++        <executions>
++          <execution>
++            <id>copy-source-files</id>
++            <phase>generate-sources</phase>
++            <goals>
++              <goal>copy-resources</goal>
++            </goals>
++            <configuration>
++              <outputDirectory>${generated.sources.dir}/com/google/protobuf</outputDirectory>
++              <resources>
++                <resource>
++                  <directory>${basedir}/../core/src/main/java/com/google/protobuf</directory>
++                  <includes>
++                    <!-- Keep in sync with //java/core:BUILD  -->
++                    <include>AbstractMessageLite.java</include>
++                    <include>AbstractParser.java</include>
++                    <include>AbstractProtobufList.java</include>
++                    <include>AllocatedBuffer.java</include>
++                    <include>Android.java</include>
++                    <include>ArrayDecoders.java</include>
++                    <include>BinaryReader.java</include>
++                    <include>BinaryWriter.java</include>
++                    <include>BooleanArrayList.java</include>
++                    <include>BufferAllocator.java</include>
++                    <include>ByteBufferWriter.java</include>
++                    <include>ByteOutput.java</include>
++                    <include>ByteString.java</include>
++                    <include>CanIgnoreReturnValue.java</include>
++                    <include>CheckReturnValue.java</include>
++                    <include>CodedInputStream.java</include>
++                    <include>CodedInputStreamReader.java</include>
++                    <include>CodedOutputStream.java</include>
++                    <include>CodedOutputStreamWriter.java</include>
++                    <include>CompileTimeConstant.java</include>
++                    <include>DoubleArrayList.java</include>
++                    <include>ExperimentalApi.java</include>
++                    <include>ExtensionLite.java</include>
++                    <include>ExtensionRegistryFactory.java</include>
++                    <include>ExtensionRegistryLite.java</include>
++                    <include>ExtensionSchema.java</include>
++                    <include>ExtensionSchemaLite.java</include>
++                    <include>ExtensionSchemas.java</include>
++                    <include>FieldInfo.java</include>
++                    <include>FieldSet.java</include>
++                    <include>FieldType.java</include>
++                    <include>FloatArrayList.java</include>
++                    <include>GeneratedMessageInfoFactory.java</include>
++                    <include>GeneratedMessageLite.java</include>
++                    <include>InlineMe.java</include>
++                    <include>IntArrayList.java</include>
++                    <include>Internal.java</include>
++                    <include>InvalidProtocolBufferException.java</include>
++                    <include>IterableByteBufferInputStream.java</include>
++                    <include>Java8Compatibility.java</include>
++                    <include>JavaType.java</include>
++                    <include>LazyField.java</include>
++                    <include>LazyFieldLite.java</include>
++                    <include>LazyStringArrayList.java</include>
++                    <include>LazyStringList.java</include>
++                    <include>ListFieldSchema.java</include>
++                    <include>ListFieldSchemaLite.java</include>
++                    <include>ListFieldSchemas.java</include>
++                    <include>LongArrayList.java</include>
++                    <include>ManifestSchemaFactory.java</include>
++                    <include>MapEntryLite.java</include>
++                    <include>MapFieldLite.java</include>
++                    <include>MapFieldSchema.java</include>
++                    <include>MapFieldSchemaLite.java</include>
++                    <include>MapFieldSchemas.java</include>
++                    <include>MessageInfo.java</include>
++                    <include>MessageInfoFactory.java</include>
++                    <include>MessageLite.java</include>
++                    <include>MessageLiteOrBuilder.java</include>
++                    <include>MessageLiteToString.java</include>
++                    <include>MessageSchema.java</include>
++                    <include>MessageSetSchema.java</include>
++                    <include>MutabilityOracle.java</include>
++                    <include>NewInstanceSchema.java</include>
++                    <include>NewInstanceSchemaLite.java</include>
++                    <include>NewInstanceSchemas.java</include>
++                    <include>NioByteString.java</include>
++                    <include>OneofInfo.java</include>
++                    <include>Parser.java</include>
++                    <include>PrimitiveNonBoxingCollection.java</include>
++                    <include>ProtoSyntax.java</include>
++                    <include>Protobuf.java</include>
++                    <include>ProtobufArrayList.java</include>
++                    <include>ProtocolStringList.java</include>
++                    <include>RawMessageInfo.java</include>
++                    <include>Reader.java</include>
++                    <include>RopeByteString.java</include>
++                    <include>RuntimeVersion.java</include>
++                    <include>Schema.java</include>
++                    <include>SchemaFactory.java</include>
++                    <include>SchemaUtil.java</include>
++                    <include>SmallSortedMap.java</include>
++                    <include>StructuralMessageInfo.java</include>
++                    <include>TextFormatEscaper.java</include>
++                    <include>UninitializedMessageException.java</include>
++                    <include>UnknownFieldSchema.java</include>
++                    <include>UnknownFieldSetLite.java</include>
++                    <include>UnknownFieldSetLiteSchema.java</include>
++                    <include>UnmodifiableLazyStringList.java</include>
++                    <include>UnsafeByteOperations.java</include>
++                    <include>UnsafeUtil.java</include>
++                    <include>Utf8.java</include>
++                    <include>WireFormat.java</include>
++                    <include>Writer.java</include>
++                  </includes>
++                </resource>
++              </resources>
++            </configuration>
++          </execution>
++          <execution>
++            <id>copy-test-source-files</id>
++            <phase>generate-test-sources</phase>
++            <goals>
++              <goal>copy-resources</goal>
++            </goals>
++            <configuration>
++              <outputDirectory>${generated.testsources.dir}/com/google/protobuf</outputDirectory>
++              <resources>
++                <resource>
++                  <directory>${basedir}/../core/src/test/java/com/google/protobuf</directory>
++                  <!-- For sources, we want to be explicit about what we add so we don't accidentally
++                  increase the size of the lite runtime library. For tests, we want to be defensive
++                  and exclude only the full runtime exclusive tests so we don't accidentally miss
++                  any test. -->
++                  <excludes>
++                    <!-- Keep in sync with //java/core:lite_tests BUILD rule. -->
++                    <exclude>AbstractMessageTest.java</exclude>
++                    <exclude>AbstractProto2SchemaTest.java</exclude>
++                    <exclude>AnyTest.java</exclude>
++                    <exclude>CodedInputStreamTest.java</exclude>
++                    <exclude>DeprecatedFieldTest.java</exclude>
++                    <exclude>DescriptorsTest.java</exclude>
++                    <exclude>DiscardUnknownFieldsTest.java</exclude>
++                    <exclude>DynamicMessageTest.java</exclude>
++                    <exclude>ExtensionRegistryFactoryTest.java</exclude>
++                    <exclude>FieldPresenceTest.java</exclude>
++                    <exclude>ForceFieldBuildersPreRun.java</exclude>
++                    <exclude>GeneratedMessageTest.java</exclude>
++                    <exclude>LazyFieldTest.java</exclude>
++                    <exclude>LazyStringEndToEndTest.java</exclude>
++                    <exclude>LazilyParsedMessageSetTest.java</exclude>
++                    <exclude>MapForProto2Test.java</exclude>
++                    <exclude>MapTest.java</exclude>
++                    <exclude>MessageTest.java</exclude>
++                    <exclude>NestedBuildersTest.java</exclude>
++                    <exclude>PackedFieldTest.java</exclude>
++                    <exclude>ParserTest.java</exclude>
++                    <exclude>ParseExceptionsTest.java</exclude>
++                    <exclude>Proto2ExtensionLookupSchemaTest.java</exclude>
++                    <exclude>Proto2SchemaTest.java</exclude>
++                    <exclude>Proto2UnknownEnumValueTest.java</exclude>
++                    <exclude>RepeatedFieldBuilderTest.java</exclude>
++                    <exclude>ServiceTest.java</exclude>
++                    <exclude>SingleFieldBuilderTest.java</exclude>
++                    <exclude>TestBadIdentifiers.java</exclude>
++                    <exclude>TextFormatParseInfoTreeTest.java</exclude>
++                    <exclude>TextFormatParseLocationTest.java</exclude>
++                    <exclude>TextFormatPerformanceTest.java</exclude>
++                    <exclude>TextFormatTest.java</exclude>
++                    <exclude>TestUtil.java</exclude>
++                    <exclude>TypeRegistryTest.java</exclude>
++                    <exclude>UnknownEnumValueTest.java</exclude>
++                    <exclude>UnknownFieldSetLiteTest.java</exclude>
++                    <exclude>UnknownFieldSetPerformanceTest.java</exclude>
++                    <exclude>UnknownFieldSetTest.java</exclude>
++                    <exclude>WellKnownTypesTest.java</exclude>
++                    <exclude>WireFormatTest.java</exclude>
++                  </excludes>
++                </resource>
++              </resources>
++            </configuration>
++          </execution>
++        </executions>
++      </plugin>
++
++      <!-- Use Antrun plugin to generate sources with protoc -->
++      <plugin>
++        <artifactId>maven-antrun-plugin</artifactId>
++        <executions>
++          <!-- Generate core protos -->
++          <execution>
++            <id>generate-sources</id>
++            <phase>generate-sources</phase>
++            <configuration>
++              <target>
++                <ant antfile="generate-sources-build.xml"/>
++              </target>
++            </configuration>
++            <goals>
++              <goal>run</goal>
++            </goals>
++          </execution>
++
++          <!-- Generate the test protos -->
++          <execution>
++            <id>generate-test-sources</id>
++            <phase>generate-test-sources</phase>
++            <configuration>
++              <target>
++                <ant antfile="generate-test-sources-build.xml"/>
++              </target>
++            </configuration>
++            <goals>
++              <goal>run</goal>
++            </goals>
++          </execution>
++
++          <execution>
++            <id>process-lite-sources</id>
++            <phase>generate-test-sources</phase>
++            <configuration>
++              <target>
++                <ant antfile="process-lite-sources-build.xml"/>
++              </target>
++            </configuration>
++            <goals>
++              <goal>run</goal>
++            </goals>
++          </execution>
++        </executions>
++      </plugin>
++
++      <plugin>
++        <groupId>org.codehaus.mojo</groupId>
++        <artifactId>build-helper-maven-plugin</artifactId>
++        <executions>
++          <execution>
++            <id>add-generated-sources</id>
++            <phase>generate-sources</phase>
++            <goals>
++              <goal>add-source</goal>
++            </goals>
++            <configuration>
++              <sources>
++                <source>${generated.sources.dir}</source>
++              </sources>
++            </configuration>
++          </execution>
++
++          <execution>
++            <id>add-generated-test-sources</id>
++            <phase>generate-test-sources</phase>
++            <goals>
++              <goal>add-test-source</goal>
++            </goals>
++            <configuration>
++              <sources>
++                <source>${generated.testsources.dir}</source>
++              </sources>
++            </configuration>
++          </execution>
++        </executions>
++      </plugin>
++
++      <!-- OSGI bundle configuration -->
++      <plugin>
++        <groupId>org.apache.felix</groupId>
++        <artifactId>maven-bundle-plugin</artifactId>
++        <extensions>true</extensions>
++        <configuration>
++          <instructions>
++            <Automatic-Module-Name>com.google.protobuf</Automatic-Module-Name> <!-- Java9+ Jigsaw module name -->
++            <Bundle-DocURL>https://developers.google.com/protocol-buffers/</Bundle-DocURL>
++            <Bundle-SymbolicName>com.google.protobuf</Bundle-SymbolicName>
++            <Export-Package>com.google.protobuf;version=${project.version}</Export-Package>
++            <Import-Package>sun.misc;resolution:=optional,*</Import-Package>
++          </instructions>
++        </configuration>
++      </plugin>
++    </plugins>
++  </build>
++
++</project>
+diff --git a/java/pom.xml b/java/pom.xml
+index cfb264f3f..4b01ef5f2 100644
+--- a/java/pom.xml
++++ b/java/pom.xml
+@@ -286,8 +286,6 @@
+     <module>lite</module>
+     <module>core</module>
+     <module>util</module>
+-    <module>kotlin</module>
+-    <module>kotlin-lite</module>
+   </modules>
+ 
+ </project>
+diff --git a/java/util/pom.xml b/java/util/pom.xml
+new file mode 100644
+index 000000000..c9a47047a
+--- /dev/null
++++ b/java/util/pom.xml
+@@ -0,0 +1,173 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++  <modelVersion>4.0.0</modelVersion>
++  <parent>
++    <groupId>com.google.protobuf</groupId>
++    <artifactId>protobuf-parent</artifactId>
++    <version>4.29.5</version>
++  </parent>
++
++  <artifactId>protobuf-java-util</artifactId>
++  <packaging>bundle</packaging>
++
++  <name>Protocol Buffers [Util]</name>
++  <description>Utilities for Protocol Buffers</description>
++
++  <dependencies>
++    <dependency>
++      <groupId>${project.groupId}</groupId>
++      <artifactId>protobuf-java</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>com.google.guava</groupId>
++      <artifactId>guava</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>com.google.errorprone</groupId>
++      <artifactId>error_prone_annotations</artifactId>
++      <version>2.5.1</version>
++    </dependency>
++    <dependency>
++      <groupId>com.google.j2objc</groupId>
++      <artifactId>j2objc-annotations</artifactId>
++      <version>2.8</version>
++    </dependency>
++    <dependency>
++      <groupId>com.google.code.findbugs</groupId>
++      <artifactId>jsr305</artifactId>
++      <version>3.0.2</version>
++    </dependency>
++    <dependency>
++      <groupId>com.google.guava</groupId>
++      <artifactId>guava-testlib</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.code.gson</groupId>
++      <artifactId>gson</artifactId>
++      <version>2.8.9</version>
++    </dependency>
++    <dependency>
++      <groupId>junit</groupId>
++      <artifactId>junit</artifactId>
++    </dependency>
++    <dependency>
++      <groupId>org.mockito</groupId>
++      <artifactId>mockito-core</artifactId>
++      <scope>test</scope>
++    </dependency>
++    <dependency>
++      <groupId>com.google.truth</groupId>
++      <artifactId>truth</artifactId>
++      <scope>test</scope>
++    </dependency>
++  </dependencies>
++
++  <properties>
++    <!-- Use the core proto dir so that we can call the core generation script -->
++    <test.proto.dir>../core/src/test/proto</test.proto.dir>
++  </properties>
++
++  <build>
++    <plugins>
++      <plugin>
++        <artifactId>maven-antrun-plugin</artifactId>
++        <executions>
++          <!-- Generate the test protos -->
++          <execution>
++            <id>generate-test-sources</id>
++            <phase>generate-test-sources</phase>
++            <configuration>
++              <target>
++                <!-- Generate all of the test protos from the core module -->
++                <ant antfile="../core/generate-test-sources-build.xml"/>
++
++                <!-- Generate additional test protos for this module -->
++                <exec executable="${protoc}">
++                  <arg value="--java_out=${generated.testsources.dir}"/>
++                  <arg value="--proto_path=${protobuf.source.dir}"/>
++                  <arg value="--proto_path=src/test/proto"/>
++                  <arg value="src/test/proto/com/google/protobuf/util/json_test.proto"/>
++                  <arg value="src/test/proto/com/google/protobuf/util/json_test_proto2.proto"/>
++                </exec>
++              </target>
++            </configuration>
++            <goals>
++              <goal>run</goal>
++            </goals>
++          </execution>
++        </executions>
++      </plugin>
++
++      <!-- Add the generated test sources to the build -->
++      <plugin>
++        <groupId>org.codehaus.mojo</groupId>
++        <artifactId>build-helper-maven-plugin</artifactId>
++        <executions>
++          <execution>
++            <id>add-generated-test-sources</id>
++            <phase>generate-test-sources</phase>
++            <goals>
++              <goal>add-test-source</goal>
++            </goals>
++            <configuration>
++              <sources>
++                <source>${generated.testsources.dir}</source>
++              </sources>
++            </configuration>
++          </execution>
++        </executions>
++      </plugin>
++      
++      <plugin>
++        <groupId>org.codehaus.mojo</groupId>
++        <artifactId>animal-sniffer-maven-plugin</artifactId>
++        <configuration>
++          <signature>
++            <groupId>org.codehaus.mojo.signature</groupId>
++            <artifactId>java18</artifactId>
++            <version>1.0</version>
++          </signature>
++          <signature>
++            <groupId>net.sf.androidscents.signature</groupId>
++            <artifactId>android-api-level-21</artifactId>
++            <version>5.0.1_r2</version>
++          </signature>
++        </configuration>
++        <executions>
++          <execution>
++            <id>android</id>
++            <phase>test</phase>
++            <goals>
++              <goal>check</goal>
++            </goals>
++          </execution>
++        </executions>
++      </plugin>
++      <!-- Configure the OSGI bundle -->
++      <plugin>
++        <groupId>org.apache.felix</groupId>
++        <artifactId>maven-bundle-plugin</artifactId>
++        <extensions>true</extensions>
++        <configuration>
++          <instructions>
++            <Automatic-Module-Name>com.google.protobuf.util</Automatic-Module-Name> <!-- Java9+ Jigsaw module name -->
++            <Bundle-DocURL>https://developers.google.com/protocol-buffers/</Bundle-DocURL>
++            <Bundle-SymbolicName>com.google.protobuf.util</Bundle-SymbolicName>
++            <Export-Package>com.google.protobuf.util;version=${project.version}</Export-Package>
++          </instructions>
++        </configuration>
++      </plugin>
++
++      <!-- Configure the fat jar to include all dependencies -->
++      <plugin>
++        <artifactId>maven-assembly-plugin</artifactId>
++        <configuration>
++          <descriptorRefs>
++            <descriptorRef>jar-with-dependencies</descriptorRef>
++          </descriptorRefs>
++        </configuration>
++      </plugin>
++    </plugins>
++  </build>
++</project>
+-- 
+2.51.1
+
