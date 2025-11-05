@@ -115,10 +115,8 @@ languages
 
 %package devel
 Summary:        Protocol Buffers C++ headers and libraries
-Requires:       protobuf = %{version}-%{release}
-Requires:       protobuf-compiler = %{version}-%{release}
+Requires:       jsoncpp-devel
 Requires:       zlib-devel
-
 Obsoletes:      protobuf-static < 3.19.6-4
 
 %description devel
@@ -141,8 +139,6 @@ lacks descriptors, reflection, and some other features.
 %package lite-devel
 Summary:        Protocol Buffers LITE_RUNTIME development libraries
 Requires:       protobuf-devel = %{version}-%{release}
-Requires:       protobuf-lite = %{version}-%{release}
-
 Obsoletes:      protobuf-lite-static < 3.19.6-4
 
 %description lite-devel
@@ -185,7 +181,6 @@ BuildRequires:  mvn(org.codehaus.mojo:build-helper-maven-plugin)
 BuildRequires:  mvn(org.easymock:easymock)
 Conflicts:      protobuf-compiler > %{version}
 Conflicts:      protobuf-compiler < %{version}
-Obsoletes:      protobuf-javanano < 3.6.0
 
 %description java
 This package contains Java Protocol Buffers runtime library.
@@ -233,7 +228,6 @@ Protocol Buffer BOM POM.
 Summary:        Emacs mode for Google Protocol Buffers descriptions
 BuildArch:      noarch
 Requires:       emacs-filesystem >= %{_emacs_version}
-Obsoletes:      protobuf-emacs-el < 3.6.1-4
 
 %description emacs
 This package contains syntax highlighting for Google Protocol Buffers
@@ -431,6 +425,7 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
   python-protobuf package
 - Install *.proto headers with compiler, which should be usable
   without the C++ devel package installed
+- Drop some ancient obsoletes and unnecessary requires
 
 * Sun Sep 28 2025 Yaakov Selkowitz <yselkowi@redhat.com> - 3.19.6-19
 - Rebuilt for java-25-openjdk as system jdk
