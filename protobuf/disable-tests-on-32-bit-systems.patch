@@ -1,22 +1,6 @@
---- src/google/protobuf/any_test.cc	2021-10-22 08:52:03.604280348 +0200
-+++ src/google/protobuf/any_test.cc.orig	2021-10-22 08:51:46.935156306 +0200
-@@ -60,13 +60,6 @@
-   EXPECT_EQ(12345, submessage.int32_value());
- }
- 
--TEST(AnyTest, TestPackFromSerializationExceedsSizeLimit) {
--  protobuf_unittest::TestAny submessage;
--  submessage.mutable_text()->resize(INT_MAX, 'a');
--  protobuf_unittest::TestAny message;
--  EXPECT_FALSE(message.mutable_any_value()->PackFrom(submessage));
--}
--
- TEST(AnyTest, TestUnpackWithTypeMismatch) {
-   protobuf_unittest::TestAny payload;
-   payload.set_int32_value(13);
 --- src/google/protobuf/arena_unittest.cc	2021-10-22 08:52:37.804534886 +0200
 +++ src/google/protobuf/arena_unittest.cc.orig	2021-10-22 08:51:55.150217437 +0200
-@@ -1341,34 +1341,6 @@
+@@ -1643,34 +1643,6 @@ TEST(ArenaTest, MessageLiteOnArena) {
  // Align n to next multiple of 8
  uint64_t Align8(uint64_t n) { return (n + 7) & -8; }
  
@@ -48,10 +32,10 @@
 -  EXPECT_EQ(1024, arena_2.Reset());
 -}
 -
- TEST(ArenaTest, BlockSizeDoubling) {
-   Arena arena;
-   EXPECT_EQ(0, arena.SpaceUsed());
-@@ -1368,22 +1396,6 @@
+ namespace {
+ 
+ void VerifyArenaOverhead(Arena& arena, size_t overhead) {
+@@ -1740,22 +1712,6 @@ TEST(ArenaTest, Alignment) {
    }
  }
  
@@ -73,4 +57,4 @@
 -
  TEST(ArenaTest, GetArenaShouldReturnTheArenaForArenaAllocatedMessages) {
    Arena arena;
-   ArenaMessage* message = Arena::CreateMessage<ArenaMessage>(&arena);
+   ArenaMessage* message = Arena::Create<ArenaMessage>(&arena);
