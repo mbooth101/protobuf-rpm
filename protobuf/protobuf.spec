@@ -5,29 +5,34 @@
 %bcond_without java
 %endif
 
-#global rcver rc2
+# Since version 21.x of the protobuf compiler, the versioning scheme changed.
+# For details, see: https://protobuf.dev/support/version-support/
+
+# Language major versions
+%global pb_cxx 5
+%global pb_java 4
+
+# Base protobuf version
+%global pb_release 29.5
+#global pb_prerelease rc3
+%global so_version %{pb_release}.0
+%global pb_version %{pb_release}%{?pb_prerelease:~%{pb_prerelease}}
+%global pb_source  %{pb_release}%{?pb_prerelease:-%{pb_prerelease}}
 
 Summary:        Protocol Buffers - Google's data interchange format
 Name:           protobuf
 # NOTE: perl-Alien-ProtoBuf has an exact-version dependency on the version of
 # protobuf with which it was built; it therefore needs to be rebuilt even for
 # “patch” updates of protobuf.
-Version:        3.19.6
-%global so_version 30
-Release:        20%{?dist}
+Version:        %{pb_version}
+Release:        1%{?dist}
 
 # The entire source is BSD-3-Clause, except the following files, which belong
 # to the build system; are unpackaged maintainer utility scripts; or are used
 # only for building tests that are not packaged—and so they do not affect the
 # licenses of the binary RPMs:
 #
-# FSFAP:
-#   m4/ax_cxx_compile_stdcxx.m4
-#   m4/ax_prog_cc_for_build.m4
-#   m4/ax_prog_cxx_for_build.m4
 # Apache-2.0:
-#   python/mox.py
-#   python/stubout.py
 #   third_party/googletest/
 #     except the following, which are BSD-3-Clause:
 #       third_party/googletest/googletest/test/gtest_pred_impl_unittest.cc
@@ -37,35 +42,17 @@ Release:        20%{?dist}
 #       third_party/googletest/googletest/include/gtest/internal/gtest-param-util-generated.h.pump
 #       third_party/googletest/googletest/include/gtest/internal/gtest-type-util.h
 #       third_party/googletest/googletest/include/gtest/internal/gtest-type-util.h.pump
-# MIT:
-#   conformance/third_party/jsoncpp/json.h
-#   conformance/third_party/jsoncpp/jsoncpp.cpp
 License:        BSD-3-Clause
 URL:            https://github.com/protocolbuffers/protobuf
-Source0:        %{url}/archive/v%{version}%{?rcver}/protobuf-%{version}%{?rcver}-all.tar.gz
+Source0:        %{url}/archive/v%{pb_source}/protobuf-%{pb_source}-all.tar.gz
 
 Source1:        ftdetect-proto.vim
 Source2:        protobuf-init.el
 
-# We bundle a copy of the exact version of gtest that is used by upstream in
-# the source RPM rather than using the system copy. This is to be discouraged,
-# but necessary in this case.  It is not treated as a bundled library because
-# it is used only at build time, and contributes nothing to the installed
-# files.  We take measures to verify this in %%check. See
-# https://github.com/protocolbuffers/protobuf/tree/v%%{version}/third_party to
-# check the correct commit hash.
-%global gtest_url https://github.com/google/googletest
-%global gtest_commit 5ec7f0c4a113e2f18ac2c6cc7df51ad6afc24081
-%global gtest_dir googletest-%{gtest_commit}
-# For tests (using exactly the same version as the release)
-Source3:        %{gtest_url}/archive/%{gtest_commit}/%{gtest_dir}.tar.gz
-
 # Man page hand-written for Fedora in groff_man(7) format based on “protoc
 # --help” output.
-Source4:        protoc.1
+Source3:        protoc.1
 
-# https://github.com/protocolbuffers/protobuf/issues/8082
-Patch1:         protobuf-3.14-disable-IoTest.LargeOutput.patch
 # Disable tests that are failing on 32bit systems
 Patch2:         disable-tests-on-32-bit-systems.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=2051202
@@ -73,33 +60,27 @@ Patch2:         disable-tests-on-32-bit-systems.patch
 # throws java.lang.ClassFormatError accessible: module java.base does not "opens java.lang" to unnamed module @12d5624a
 #	at com.google.protobuf.ServiceTest.testGetPrototype(ServiceTest.java:107)
 Patch3:         protobuf-3.19.4-jre17-add-opens.patch
-# Backport upstream commit 9252b64ef3887e869999752010d553f068338a60:
-#   Automated rollback of commit 0ee34de
-Patch5:         protobuf-3.19.6-jre21.patch
-# Fix build with GCC 15 on s390x and i686
+# Fix build with GCC 15 on s390x
 # From https://bugzilla.redhat.com/show_bug.cgi?id=2343969#c16
-#  and https://github.com/protocolbuffers/protobuf/commit/47c1998e4e7f21175bc1e3840907d4219a11b25a
 #  and https://github.com/protocolbuffers/protobuf/commit/a2859cc2ce25711613002104022186c0c37d9f1f
 Patch6:         protobuf-3.19.6-gcc15.patch
+# Backport of patch to use if constexpr
+# - https://github.com/protocolbuffers/protobuf/commit/0ea5ccd61c69ff5000631781c6c9a3a50241392c
+Patch7:         use-if-constexpr.patch
+# Backport of patch to fix LTO-only linker error
+# - https://github.com/protocolbuffers/protobuf/commit/3434a21151055b597915f6ff94255a1a195a9ed5
+Patch8:         fix-linker-error.patch
 
-# A bundled copy of jsoncpp is included in the conformance tests, but the
-# result is not packaged, so we do not treat it as a formal bundled
-# dependency—thus the virtual Provides below is commented out. The bundling is
-# removed in a later release:
-#   Make jsoncpp a formal dependency
-#   https://github.com/protocolbuffers/protobuf/pull/10739
-# The bundled version number is obtained from JSONCPP_VERSION_STRING in
-# conformance/third_party/jsoncpp/json.h.
-# Provides:       bundled(jsoncpp) = 1.6.5
-
-BuildRequires:  autoconf
-BuildRequires:  automake
-BuildRequires:  libtool
-
-BuildRequires:  make
+BuildRequires:  cmake
+BuildRequires:  ninja-build
 BuildRequires:  gcc-c++
 
 BuildRequires:  emacs
+
+BuildRequires:  abseil-cpp-devel
+BuildRequires:  gmock-devel
+BuildRequires:  gtest-devel
+BuildRequires:  jsoncpp-devel
 BuildRequires:  zlib-devel
 
 %if %{with java}
@@ -127,7 +108,6 @@ breaking deployed programs that are compiled against the "old" format.
 
 %package compiler
 Summary:        Protocol Buffers compiler
-Requires:       protobuf = %{version}-%{release}
 
 %description compiler
 This package contains Protocol Buffers compiler for all programming
@@ -142,8 +122,11 @@ Requires:       zlib-devel
 Obsoletes:      protobuf-static < 3.19.6-4
 
 %description devel
-This package contains Protocol Buffers compiler for all languages and
-C++ headers and libraries
+Protocol Buffers are a way of encoding structured data in an efficient
+yet extensible format. Google uses Protocol Buffers for almost all of
+its internal RPC protocols and file formats.
+
+This package installs development headers and libraries for C++.
 
 %package lite
 Summary:        Protocol Buffers LITE_RUNTIME libraries
@@ -163,12 +146,13 @@ Requires:       protobuf-lite = %{version}-%{release}
 Obsoletes:      protobuf-lite-static < 3.19.6-4
 
 %description lite-devel
-This package contains development libraries built with
-optimize_for = LITE_RUNTIME.
+Protocol Buffers built with optimize_for = LITE_RUNTIME.
 
 The "optimize_for = LITE_RUNTIME" option causes the compiler to generate code
 which only depends libprotobuf-lite, which is much smaller than libprotobuf but
 lacks descriptors, reflection, and some other features.
+
+This package installs development headers and libraries for C++.
 
 %package vim
 Summary:        Vim syntax highlighting for Google Protocol Buffers descriptions
@@ -256,25 +240,23 @@ This package contains syntax highlighting for Google Protocol Buffers
 descriptions in the Emacs editor.
 
 %prep
-%setup -q -n protobuf-%{version}%{?rcver} -a 3
+%setup -q -n protobuf-%{pb_source}
 %ifarch %{ix86}
-# IoTest.LargeOutput fails on 32bit arches
-# https://github.com/protocolbuffers/protobuf/issues/8082
-%patch 1 -p1
 # Need to disable more tests that fail on 32bit arches only
 %patch 2 -p0
 %endif
 %patch 3 -p1 -b .jre17
-%patch 5 -p1 -b .jre21
 %patch 6 -p1 -b .gcc15
+%patch 7 -p1 -b .if-constexpr
+%patch 8 -p1 -b .link-error
+%patch 9 -p1 -b .no-libutf8_range
 
-# Copy in the needed gtest/gmock implementations.
-%setup -q -T -D -b 3 -n protobuf-%{version}%{?rcver}
-rm -rvf 'third_party/googletest'
-mv '../%{gtest_dir}' 'third_party/googletest'
+# Remove a test that fails
+sed -i -e '/command_line_interface_unittest/d' src/file_lists.cmake
 
 find -name \*.cc -o -name \*.h | xargs chmod -x
-chmod 644 examples/*
+find examples -type f | xargs chmod 0644
+
 %if %{with java}
 %ifarch %{java_arches}
 %pom_remove_dep com.google.errorprone:error_prone_annotations java/util/pom.xml
@@ -301,19 +283,20 @@ find -name '*.java' | xargs sed -ri \
 
 rm -f src/solaris/libstdc++.la
 
+
 %build
 iconv -f iso8859-1 -t utf-8 CONTRIBUTORS.txt > CONTRIBUTORS.txt.utf8
 mv CONTRIBUTORS.txt.utf8 CONTRIBUTORS.txt
-export PTHREAD_LIBS="-lpthread"
-./autogen.sh
-%configure --disable-static
 
-# -Wno-error=type-limits:
-#     https://bugzilla.redhat.com/show_bug.cgi?id=1838470
-#     https://github.com/protocolbuffers/protobuf/issues/7514
-#     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95148
-#  (also set in %%check)
-%make_build CXXFLAGS="%{build_cxxflags} -Wno-error=type-limits"
+%cmake . -G Ninja \
+  -Dprotobuf_BUILD_TESTS:BOOL=ON \
+  -Dprotobuf_BUILD_CONFORMANCE:BOOL=ON \
+  -Dprotobuf_BUILD_LIBPROTOC:BOOL=ON \
+  -Dprotobuf_BUILD_LIBUPB:BOOL=OFF \
+  -Dprotobuf_ABSL_PROVIDER:STRING="package" \
+  -Dprotobuf_JSONCPP_PROVIDER:STRING="package" \
+  -Dprotobuf_USE_EXTERNAL_GTEST:BOOL=ON
+%cmake_build
 
 %if %{with java}
 %ifarch %{java_arches}
@@ -331,15 +314,17 @@ export MAVEN_OPTS=-Xmx1024m
 
 
 %check
-%make_build check CXXFLAGS="%{build_cxxflags} -Wno-error=type-limits"
+%ctest
 
 
 %install
-%make_install %{?_smp_mflags} STRIPBINARIES=no INSTALL="%{__install} -p" CPPROG="cp -p"
+%cmake_install
 find %{buildroot} -type f -name "*.la" -exec rm -f {} +
+find %{buildroot} -type f -name "*.o" -exec rm -f {} +
+find %{buildroot} -type f -name "*.a" -exec rm -f {} +
 
 # protoc.1 man page
-install -p -m 0644 -D -t '%{buildroot}%{_mandir}/man1' '%{SOURCE4}'
+install -p -m 0644 -D -t '%{buildroot}%{_mandir}/man1' '%{SOURCE3}'
 
 install -p -m 644 -D %{SOURCE1} %{buildroot}%{_datadir}/vim/vimfiles/ftdetect/proto.vim
 install -p -m 644 -D editors/proto.vim %{buildroot}%{_datadir}/vim/vimfiles/syntax/proto.vim
@@ -356,24 +341,40 @@ install -p -m 0644 editors/protobuf-mode.elc %{buildroot}%{_emacs_sitelispdir}/p
 mkdir -p %{buildroot}%{_emacs_sitestartdir}
 install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 
+
 %files
-%doc CHANGES.txt CONTRIBUTORS.txt README.md
+%doc CONTRIBUTORS.txt README.md SECURITY.md
 %license LICENSE
-%{_libdir}/libprotobuf.so.%{so_version}{,.*}
+%{_libdir}/libprotobuf.so.%{so_version}
+%{_libdir}/libutf8_range.so
+%{_libdir}/libutf8_validity.so
 
 %files compiler
 %doc README.md
 %license LICENSE
+%dir %{_includedir}/google
+%dir %{_includedir}/google/protobuf
+%{_includedir}/google/protobuf/*.proto
+%dir %{_includedir}/google/protobuf/compiler
+%{_includedir}/google/protobuf/compiler/*.proto
 %{_bindir}/protoc
+%{_bindir}/protoc-%{so_version}
 %{_mandir}/man1/protoc.1*
-%{_libdir}/libprotoc.so.%{so_version}{,.*}
+%{_libdir}/libprotoc.so.%{so_version}
 
 %files devel
 %dir %{_includedir}/google
 %{_includedir}/google/protobuf/
+%{_includedir}/upb/
+%{_includedir}/upb_generator/
+%{_includedir}/utf8_range.h
+%{_includedir}/utf8_validity.h
 %{_libdir}/libprotobuf.so
 %{_libdir}/libprotoc.so
+%{_libdir}/cmake/protobuf
+%{_libdir}/cmake/utf8_range
 %{_libdir}/pkgconfig/protobuf.pc
+%{_libdir}/pkgconfig/utf8_range.pc
 %doc examples/add_person.cc examples/addressbook.proto examples/list_people.cc examples/Makefile examples/README.md
 
 %files emacs
@@ -383,7 +384,7 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 
 %files lite
 %license LICENSE
-%{_libdir}/libprotobuf-lite.so.%{so_version}{,.*}
+%{_libdir}/libprotobuf-lite.so.%{so_version}
 
 %files lite-devel
 %{_libdir}/libprotobuf-lite.so
@@ -422,9 +423,14 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 
 
 %changelog
-* Tue Nov 04 2025 Mat Booth <mat.booth@gmail.com> - 3.19.6-20
+* Tue Nov 04 2025 Mat Booth <mat.booth@gmail.com> - 29.5-1
+- Update protobuf to 29.5
+- Drop upstreamed patches
+- Upstream build moved to cmake
 - Remove python machinery, python binaries now shipped in separate
   python-protobuf package
+- Install *.proto headers with compiler, which should be usable
+  without the C++ devel package installed
 
 * Sun Sep 28 2025 Yaakov Selkowitz <yselkowi@redhat.com> - 3.19.6-19
 - Rebuilt for java-25-openjdk as system jdk
