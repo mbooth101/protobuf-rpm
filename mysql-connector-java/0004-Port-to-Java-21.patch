@@ -1,0 +1,42 @@
+From 790e9bdb1c73b3695a1bea9d0fccf91341728fc7 Mon Sep 17 00:00:00 2001
+From: rpm-build <rpm-build>
+Date: Fri, 24 Jan 2025 10:09:16 +0100
+Subject: [PATCH 4/4] Port to Java 21
+
+---
+ build.xml | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/build.xml b/build.xml
+index 3d13bf4..b3437d5 100644
+--- a/build.xml
++++ b/build.xml
+@@ -350,17 +350,6 @@ See also com.mysql.cj.conf.PropertyDefinitions.SYSP_* variables for other test o
+             <arg value="-version" />
+         </exec>
+ 
+-        <fail message="Java 8 is required. Set the full path to this JDK home with the property 'com.mysql.cj.build.jdk'. Default: '/usr/lib/jvm/jdk1.8').">
+-            <condition>
+-                <not>
+-                    <and>
+-                        <equals arg1="${com.mysql.cj.build.jdk.exitStatus}" arg2="0" />
+-                        <contains string="${com.mysql.cj.build.jdk.version}" substring="version &quot;1.8" casesensitive="true" />
+-                    </and>
+-                </not>
+-            </condition>
+-        </fail>
+-
+         <exec executable="${com.mysql.cj.build.jdk.javac}"
+               outputproperty="com.mysql.cj.dist.jdk.compilerVersion"
+               failonerror="true"
+@@ -1054,6 +1043,7 @@ See also com.mysql.cj.conf.PropertyDefinitions.SYSP_* variables for other test o
+                executable="${com.mysql.cj.build.jdk.javac}"
+                compiler="modern"
+                includeantruntime="false"
++               release="8"
+                encoding="UTF-8">
+             <include name="**/*.java" />
+             <exclude name="testsuite/**" />
+-- 
+2.48.1
+

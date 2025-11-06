@@ -1,0 +1,13 @@
+diff -Naur mysql-connector-python-8.0.33-src/cpydist/__init__.py mysql-connector-python_patched/cpydist/__init__.py
+--- mysql-connector-python-8.0.33-src/cpydist/__init__.py	2023-03-30 12:58:04.000000000 +0200
++++ mysql-connector-python_patched/cpydist/__init__.py	2025-07-21 09:21:19.084953101 +0200
+@@ -722,9 +722,6 @@
+                 # Add extra link args
+                 if self.extra_link_args:
+                     ext.extra_link_args.extend(self.extra_link_args.split())
+-                # Add -rpath if the platform is Linux
+-                if platform.system() == "Linux" and not self.skip_vendor:
+-                    ext.extra_link_args.extend(["-Wl,-rpath,$ORIGIN/mysql/vendor"])
+                 # Add include dirs
+                 if self.with_openssl_include_dir:
+                     ext.include_dirs.append(self.with_openssl_include_dir)
