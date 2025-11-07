@@ -1,21 +1,21 @@
-From 790e9bdb1c73b3695a1bea9d0fccf91341728fc7 Mon Sep 17 00:00:00 2001
+From ec05e3d1dc3d8bc12440a263931ae99cebe651be Mon Sep 17 00:00:00 2001
 From: rpm-build <rpm-build>
 Date: Fri, 24 Jan 2025 10:09:16 +0100
-Subject: [PATCH 4/4] Port to Java 21
+Subject: [PATCH 3/5] Port to Java 21
 
 ---
- build.xml | 12 +-----------
- 1 file changed, 1 insertion(+), 11 deletions(-)
+ build.xml | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)
 
 diff --git a/build.xml b/build.xml
-index 3d13bf4..b3437d5 100644
+index 953ab0d..cc15ff4 100644
 --- a/build.xml
 +++ b/build.xml
-@@ -350,17 +350,6 @@ See also com.mysql.cj.conf.PropertyDefinitions.SYSP_* variables for other test o
+@@ -351,16 +351,6 @@ See also com.mysql.cj.conf.PropertyDefinitions.SYSP_* variables for other test o
              <arg value="-version" />
          </exec>
  
--        <fail message="Java 8 is required. Set the full path to this JDK home with the property 'com.mysql.cj.build.jdk'. Default: '/usr/lib/jvm/jdk1.8').">
+-        <fail message="Java 8 is required for compiling the source code. Set the path to the JDK home with the property 'com.mysql.cj.build.jdk'. Default: '/usr/lib/jvm/jdk1.8').">
 -            <condition>
 -                <not>
 -                    <and>
@@ -25,11 +25,10 @@ index 3d13bf4..b3437d5 100644
 -                </not>
 -            </condition>
 -        </fail>
--
+ 
          <exec executable="${com.mysql.cj.build.jdk.javac}"
                outputproperty="com.mysql.cj.dist.jdk.compilerVersion"
-               failonerror="true"
-@@ -1054,6 +1043,7 @@ See also com.mysql.cj.conf.PropertyDefinitions.SYSP_* variables for other test o
+@@ -1052,6 +1042,7 @@ See also com.mysql.cj.conf.PropertyDefinitions.SYSP_* variables for other test o
                 executable="${com.mysql.cj.build.jdk.javac}"
                 compiler="modern"
                 includeantruntime="false"
@@ -38,5 +37,5 @@ index 3d13bf4..b3437d5 100644
              <include name="**/*.java" />
              <exclude name="testsuite/**" />
 -- 
-2.48.1
+2.51.1
 

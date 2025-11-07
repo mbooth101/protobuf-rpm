@@ -19,7 +19,8 @@ find -name '*.jar' -print -delete
 find -name '*.class' -print -delete
 find -name '*.zip' -print -delete
 
-tar -c * | zstd -10 -f -o "../${name}-${version}.tar.zst"
+tar caf ../${name}-${version}-nojars.tar.xz *
 
 popd
+
 rm -r tarball-tmp "${name}-${version}.orig.tar.gz"

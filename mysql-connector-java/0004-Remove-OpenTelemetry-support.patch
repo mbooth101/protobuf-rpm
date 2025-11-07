@@ -1,0 +1,55 @@
+From efa693e48a8e770951f48a9292961bcfc031fb6a Mon Sep 17 00:00:00 2001
+From: Mat Booth <mat.booth@gmail.com>
+Date: Fri, 7 Nov 2025 14:09:32 +0000
+Subject: [PATCH 4/5] Remove OpenTelemetry support
+
+---
+ build.xml                                               | 1 +
+ src/main/core-impl/java/com/mysql/cj/NativeSession.java | 5 -----
+ 2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/build.xml b/build.xml
+index cc15ff4..1d8ac9d 100644
+--- a/build.xml
++++ b/build.xml
+@@ -1047,6 +1047,7 @@ See also com.mysql.cj.conf.PropertyDefinitions.SYSP_* variables for other test o
+             <include name="**/*.java" />
+             <exclude name="testsuite/**" />
+             <exclude name="com/mysql/cj/jdbc/integration/**" />
++            <exclude name="com/mysql/cj/otel/**" />
+             <classpath refid="com.mysql.cj.build.classpath" />
+             <compilerarg line="${javac.compilerarg}" />
+         </javac>
+diff --git a/src/main/core-impl/java/com/mysql/cj/NativeSession.java b/src/main/core-impl/java/com/mysql/cj/NativeSession.java
+index fca01a6..3dfc22e 100644
+--- a/src/main/core-impl/java/com/mysql/cj/NativeSession.java
++++ b/src/main/core-impl/java/com/mysql/cj/NativeSession.java
+@@ -54,7 +54,6 @@ import com.mysql.cj.exceptions.MysqlErrorNumbers;
+ import com.mysql.cj.exceptions.OperationCancelledException;
+ import com.mysql.cj.interceptors.QueryInterceptor;
+ import com.mysql.cj.log.Log;
+-import com.mysql.cj.otel.OpenTelemetryHandler;
+ import com.mysql.cj.protocol.ColumnDefinition;
+ import com.mysql.cj.protocol.NetworkResources;
+ import com.mysql.cj.protocol.ProtocolEntityFactory;
+@@ -114,7 +113,6 @@ public class NativeSession extends CoreSession implements Serializable {
+         // Check Telemetry option.
+         RuntimeProperty<OpenTelemetry> openTelemetry = this.propertySet.getEnumProperty(PropertyKey.openTelemetry);
+         if (openTelemetry.getValue() == OpenTelemetry.PREFERRED || openTelemetry.getValue() == OpenTelemetry.REQUIRED) {
+-            if (!OpenTelemetryHandler.isOpenTelemetryApiAvailable()) {
+                 if (openTelemetry.getValue() == OpenTelemetry.REQUIRED) {
+                     throw ExceptionFactory.createException(Messages.getString("Connection.OtelApiNotFound"));
+                 }
+@@ -122,9 +120,6 @@ public class NativeSession extends CoreSession implements Serializable {
+                     getLog().logInfo(Messages.getString("Connection.OtelApiNotFound"));
+                 }
+                 setTelemetryHandler(NoopTelemetryHandler.getInstance());
+-            } else {
+-                setTelemetryHandler(new OpenTelemetryHandler());
+-            }
+         } else {
+             setTelemetryHandler(NoopTelemetryHandler.getInstance());
+         }
+-- 
+2.51.1
+

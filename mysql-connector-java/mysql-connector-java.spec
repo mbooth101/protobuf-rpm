@@ -1,6 +1,6 @@
 Name:           mysql-connector-java
 Epoch:          1
-Version:        8.0.30
+Version:        9.3.0
 Release:        %autorelease
 Summary:        Official JDBC driver for MySQL
 License:        GPL-2.0-only
@@ -12,13 +12,22 @@ ExclusiveArch:  %{java_arches} noarch
 Source0:        %{name}-%{version}-nojars.tar.xz
 Source1:        generate-tarball.sh
 
-Patch:          0001-Remove-coverage-test.patch
-Patch:          0002-Remove-authentication-plugin.patch
-Patch:          0003-Remove-StatementsTest.patch
-Patch:          0004-Port-to-Java-21.patch
+Patch:          0001-remove-AuthenticationOciClient-plugin.patch
+Patch:          0002-Remove-StatementsTest.patch
+Patch:          0003-Port-to-Java-21.patch
+Patch:          0004-Remove-OpenTelemetry-support.patch
+Patch:          0005-Fix-javadoc-generation.patch
+
+# The new name for mysql-connector-java
+Provides:       mysql-connector-j = %{epoch}:%{version}-%{release}
+
+# Version 4 of the Java language bindings for protobuf are required
+Requires:       mvn(com.google.protobuf:protobuf-java) >= 4.29.0
 
 BuildRequires:  javapackages-local-openjdk25
+BuildRequires:  ant-junit
 BuildRequires:  ant-junit5
+BuildRequires:  apiguardian
 BuildRequires:  javassist
 BuildRequires:  protobuf-java
 BuildRequires:  slf4j
@@ -35,29 +44,35 @@ capabilities of MySQL.
 %prep
 %autosetup -p1 -C
 
-# xmlstarlet ed -L -N pom="http://maven.apache.org/POM/4.0.0" -u "/project/version" -v "8.0.33" src/build/misc/pom.xml
-%pom_xpath_set 'pom:project/pom:version' %{version} src/build/misc/pom.xml
+# Remove pom dependency on Oracle OCI that we patched out
+%pom_remove_dep :oci-java-sdk-common src/build/misc/pom.xml
 
-# We currently need to disable jboss integration because of missing jboss-common-jdbc-wrapper.jar (built from sources).
-# See BZ#480154 and BZ#471915 for details.
-rm -rf src/main/user-impl/java/com/mysql/cj/jdbc/integration/jboss
-rm src/test/java/testsuite/regression/ConnectionRegressionTest.java
-rm src/test/java/testsuite/regression/DataSourceRegressionTest.java
-rm src/test/java/testsuite/simple/StatementsTest.java
+# This library is now known as "mysql-connector-j" so install aliases and symlinks
+# for the legacy name of "mysql-connector-java"
+%mvn_file com.mysql:mysql-connector-j mysql-connector-j mysql-connector-java
+%mvn_alias com.mysql:mysql-connector-j mysql:mysql-connector-java
+
+# Many test fail with "CommunicationsException: Communications link failure. The
+# last packet sent successfully to the server was 0 milliseconds ago. The driver
+# has not received any packets from the server."
+rm src/test/java/com/mysql/cj/util/{StringUtilsTest,StringInspectorTest}.java
+rm src/test/java/testsuite/regression/*
+rm src/test/java/testsuite/simple/*
 
 %build
 ant -Dcom.mysql.cj.build.jdk=%{java_home} \
     -Dcom.mysql.cj.extra.libs=%{_javadir} \
-    test dist
+    -Dcom.mysql.cj.build.driver.version.snapshot="" \
+    -Dcom.mysql.cj.build.git.branch="release/%{version}" \
+    test package
 
 %install
-# Install the Maven build information
-%mvn_file mysql:mysql-connector-java %{name}
-%mvn_artifact src/build/misc/pom.xml build/%{name}-%{version}-SNAPSHOT/%{name}-%{version}-SNAPSHOT.jar
+%mvn_artifact dist/workspace/*_maven/mysql-connector-j-%{version}.pom \
+              dist/workspace/*_maven/mysql-connector-j-%{version}.jar
 %mvn_install
 
 %files -f .mfiles
-%doc CHANGES README README.md
+%doc CHANGES README README.md SECURITY.md
 %license LICENSE
 
 %changelog

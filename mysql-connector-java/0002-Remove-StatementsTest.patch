@@ -1,33 +1,25 @@
-From b9a7a929f547d1408c42aca31603d52518f6296b Mon Sep 17 00:00:00 2001
+From aa6eaef3740ccb59874d083d73a0b8e285dc9792 Mon Sep 17 00:00:00 2001
 From: Zuzana Miklankova <zmiklank@redhat.com>
 Date: Tue, 18 Jan 2022 15:04:09 +0100
-Subject: [PATCH] patch
+Subject: [PATCH 2/5] Remove StatementsTest
 
 ---
- .../regression/StatementRegressionTest.java   | 50 -------------------
- 1 file changed, 50 deletions(-)
+ .../regression/StatementRegressionTest.java   | 48 -------------------
+ 1 file changed, 48 deletions(-)
 
 diff --git a/src/test/java/testsuite/regression/StatementRegressionTest.java b/src/test/java/testsuite/regression/StatementRegressionTest.java
-index 7e5a5f8..8e77de5 100644
+index 12d70ff..99b7c6f 100644
 --- a/src/test/java/testsuite/regression/StatementRegressionTest.java
 +++ b/src/test/java/testsuite/regression/StatementRegressionTest.java
-@@ -156,7 +156,6 @@ import com.mysql.cj.util.TimeUtil;
- import testsuite.BaseQueryInterceptor;
- import testsuite.BaseTestCase;
- import testsuite.UnreliableSocketFactory;
--import testsuite.simple.StatementsTest;
- 
- /**
-  * Regression tests for the Statement class
-@@ -11607,20 +11606,6 @@ public class StatementRegressionTest extends BaseTestCase {
+@@ -11797,20 +11797,6 @@ public class StatementRegressionTest extends BaseTestCase {
          }
      }
  
 -    /**
 -     * Tests fix for Bug#23204652, CURSOR POSITIONING API'S DOESNOT CHECK THE VALIDITY OF RESULTSET.
--     * 
+-     *
 -     * @throws Exception
--     * 
+-     *
 -     * @see StatementsTest#testResultSetProducingQueries()
 -     */
 -    @Test
@@ -40,15 +32,15 @@ index 7e5a5f8..8e77de5 100644
  
      /**
       * Tests fix for Bug#71929 (18346501), Prefixing query with double comments cancels query DML validation.
-@@ -11648,41 +11633,6 @@ public class StatementRegressionTest extends BaseTestCase {
+@@ -11838,40 +11824,6 @@ public class StatementRegressionTest extends BaseTestCase {
          }
      }
  
 -    /**
--     * Test fix for Bug#103612 (32902019), Incorrectly identified WITH...SELECT as unsafe for read-only connections.
--     * 
+-     * Tests fix for Bug#103612 (32902019), Incorrectly identified WITH...SELECT as unsafe for read-only connections.
+-     *
 -     * @throws Exception
--     * 
+-     *
 -     * @see StatementsTest#testReadOnlySafeStatements()
 -     */
 -    @Test
@@ -78,10 +70,9 @@ index 7e5a5f8..8e77de5 100644
 -            testConn.close();
 -        } while ((useSPS = !useSPS) || (readOnly = !readOnly));
 -    }
--
+ 
      /**
       * Tests fix for Bug#101389 (32089018), GETWARNINGS SHOULD CHECK WARNING COUNT BEFORE SENDING SHOW.
-      * 
 -- 
-2.48.1
+2.51.1
 
