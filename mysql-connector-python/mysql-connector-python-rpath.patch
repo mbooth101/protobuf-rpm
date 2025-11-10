@@ -1,7 +1,8 @@
-diff -Naur mysql-connector-python-8.0.33-src/cpydist/__init__.py mysql-connector-python_patched/cpydist/__init__.py
---- mysql-connector-python-8.0.33-src/cpydist/__init__.py	2023-03-30 12:58:04.000000000 +0200
-+++ mysql-connector-python_patched/cpydist/__init__.py	2025-07-21 09:21:19.084953101 +0200
-@@ -722,9 +722,6 @@
+diff --git a/mysql-connector-python/cpydist/__init__.py b/mysql-connector-python/cpydist/__init__.py
+index 2752d79..cbdb9d5 100644
+--- a/mysql-connector-python/cpydist/__init__.py
++++ b/mysql-connector-python/cpydist/__init__.py
+@@ -655,9 +655,6 @@ class BuildExt(build_ext, BaseCommand):
                  # Add extra link args
                  if self.extra_link_args:
                      ext.extra_link_args.extend(self.extra_link_args.split())

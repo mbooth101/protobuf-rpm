@@ -16,7 +16,7 @@ NAME="mysql-connector-python"
 VERSION=$( rpmspec -q --srpm --qf '%{VERSION}' "${NAME}.spec" )
 
 # the source url of the mysql upstream tarball of the package
-SOURCE_URL="http://dev.mysql.com/get/Downloads/Connector-python/8.0/${NAME}-${VERSION}-src.tar.gz"
+SOURCE_URL="http://dev.mysql.com/get/Downloads/Connector-Python/${NAME}-${VERSION}-src.tar.gz"
 
 # original archive name
 OLD_ARCHIVE_NAME="${NAME}-${VERSION}-src"
@@ -36,7 +36,7 @@ wget "${SOURCE_URL}"
 tar -xzf "${OLD_ARCHIVE_NAME}.tar.gz"
 
 # removes the problematic font files
-rm "./${OLD_ARCHIVE_NAME}/docs/mysqlx/_themes/sphinx_rtd_theme/static/css/fonts/"*
+rm "./${OLD_ARCHIVE_NAME}/mysqlx-connector-python/docs/mysqlx/_themes/sphinx_rtd_theme/static/css/fonts/"*
 
 # compresses the modified sources under a new name
 tar -czf "${NEW_ARCHIVE_NAME}.tar.gz" "${OLD_ARCHIVE_NAME}"

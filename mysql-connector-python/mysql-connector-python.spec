@@ -15,17 +15,9 @@ ExcludeArch: %{ix86}
 # Tests rely on MySQL version 5.6
 %global with_tests   %{?_with_tests:1}%{!?_with_tests:0}
 
-# The building of the mysqlxb C extension is
-# disabled at the moment as it requires protobuf
-# with version 4.25.3 or higher and we only have 
-# 3.19.6 in fedora at the moment, when protobuf is
-# rebased to a sufficient version this condition
-# should either be enabled or removed altogether
-%global with_mysqlxpb   0
-
 Name:           mysql-connector-python
-Version:        8.0.33
-Release:        7%{?dist}
+Version:        9.5.0
+Release:        1%{?dist}
 Summary:        MySQL Connector for Python 3
 
 # Automatically converted from old format: GPLv2 with exceptions - review is highly recommended.
@@ -47,22 +39,24 @@ BuildRequires:  python3-devel >= 3
 BuildRequires:  gcc-c++
 # for building the extension modules
 BuildRequires:  mysql-devel
+BuildRequires:  mysql-server
 # for building documentation
 BuildRequires:  python3-sphinx
-# for import check (runtime dependency)
-BuildRequires:  python3-protobuf
-%if %{with_tests}
-# for unittest
-BuildRequires:  mysql-server
-%endif
+BuildRequires:  python3-sphinxcontrib-jquery
 
-%if %{with_mysqlxpb}
-BuildRequires:  protobuf-devel >= 4.25.3
-BuildRequires:  protobuf-compiler >= 4.25.3
-%endif
+BuildRequires:  python3-protobuf >= 5.29.4
+BuildRequires:  protobuf-devel >= 29.5
+BuildRequires:  protobuf-compiler >= 29.5
 
 %generate_buildrequires
+pushd mysql-connector-python &>/dev/null
+%if %{with_tests}
+%pyproject_buildrequires -x gssapi
+%else
 %pyproject_buildrequires
+%endif
+popd &>/dev/null
+
 
 %global _description\
 MySQL Connector/Python is implementing the MySQL Client/Server protocol\
@@ -78,35 +72,40 @@ Documentation: http://dev.mysql.com/doc/connector-python/en/index.html\
 Summary: MySQL Connector for Python 3
 %{?python_provide:%python_provide python3-mysql-connector}
 
-%description -n mysql-connector-python3
-MySQL Connector/Python is implementing the MySQL Client/Server protocol
-completely in Python. No MySQL libraries are needed, and no compilation
-is necessary to run this Python DB API v2.0 compliant driver.
-
-Documentation: http://dev.mysql.com/doc/connector-python/en/index.html
+%description -n mysql-connector-python3 %_description
 
 
 %prep
 %setup -q -n %{name}-%{version}-src
-chmod -x examples/*py
 %patch -P0 -p1
+
+sed -i -e 's/std=c++14/std=c++17/' -e '/absl_low_level_hash/d' -e '/absl_bad_optional_access/d' \
+       mysqlx-connector-python/cpydist/__init__.py
+sed -i -e '/gssapi/s/==1.8.3/>=1.7.3/' mysql-connector-python/setup.py
+
 
 %build
 export MYSQL_CAPI=%{_prefix}  # searches for bin/mysql_config in here, enables the extension module
 export LDFLAGS="$LDFLAGS -L%{_libdir}/mysql"
 
-%if %{with_mysqlxpb}
-export MYSQLXPB_PROTOBUF=%{_prefix}
-export MYSQLXPB_PROTOBUF_INCLUDE_DIR=%{_includedir}
-export MYSQLXPB_PROTOBUF_LIB_DIR=%{_libdir}
-export MYSQLXPB_PROTOC="%{_bindir}/protoc"
-%endif
+pushd mysql-connector-python
 %pyproject_wheel
+popd
 
-#building the man pages
+pushd mysqlx-connector-python
+export PROTOBUF_INCLUDE_DIR=%{_includedir}
+export PROTOBUF_LIB_DIR=%{_libdir}
+export PROTOC=%{_bindir}/protoc
+%pyproject_wheel
+popd
+
+# building the man pages
+pushd mysqlx-connector-python
+export CPY_BUILD_DIR=$(pwd)/lib
 cd docs/mysqlx
 %{__python3} conf.py
 make man BUILDDIR=%{_builddir}
+popd
 
 
 %install
@@ -118,7 +117,7 @@ mkdir -p %{buildroot}%{_mandir}/man1
 install -p -m 0644 %{_builddir}/man/mysqlxconnectorpythondevapireference.1 %{buildroot}%{_mandir}/man1/%{name}3.1
 
 # remove the source files the man page was generated from
-rm -r docs/mysqlx
+rm -r mysqlx-connector-python/docs/mysqlx
 
 
 %check
@@ -127,30 +126,46 @@ rm -r docs/mysqlx
 # known failed tests
 # bugs.BugOra14201459.test_error1426
 
+export LDFLAGS="$LDFLAGS -L%{_libdir}/mysql"
+pushd mysql-connector-python
 %{__python3} unittests.py \
     --with-mysql=%{_prefix} \
+    --with-mysql-capi=%{_prefix} \
+    --unix-socket=%{_builddir} \
     --verbosity=1
+popd
+pushd mysqlx-connector-python
+%{__python3} unittests.py \
+    --with-mysql=%{_prefix} \
+    --with-protobuf-include-dir=%{_includedir} \
+    --with-protobuf-lib-dir=%{_libdir} \
+    --with-protoc=%{_bindir}/protoc \
+    --unix-socket=%{_builddir} \
+    --verbosity=1
+popd
 %else
 : echo test suite disabled, need '--with tests' option
 %endif
 
 
 %files -n mysql-connector-python3
-%doc CHANGES.txt README* docs
-%doc examples
+%doc CHANGES.txt README* SECURITY.md
+%doc mysql-connector-python/examples
 %license LICENSE.txt
 # can't just use %%{python3_sitearch}/* as the packaging
 # guidelines dont' allow it
 %{python3_sitearch}/mysql/
 %{python3_sitearch}/mysqlx/
 %{python3_sitearch}/_mysql_connector%{python3_ext_suffix}
-%if %{with_mysqlxpb}
 %{python3_sitearch}/_mysqlxpb%{python3_ext_suffix}
-%endif
 %{python3_sitearch}/mysql_connector_python-%{version}.dist-info/
+%{python3_sitearch}/mysqlx_connector_python-%{version}.dist-info/
 %{_mandir}/man1/%{name}3.1.*
 
 %changelog
+* Fri Nov 07 2025 Mat Booth <mat.booth@gmail.com> - 9.5.0-1
+- Update to latest upstream release
+
 * Fri Sep 19 2025 Python Maint <python-maint@redhat.com> - 8.0.33-7
 - Rebuilt for Python 3.14.0rc3 bytecode
 
