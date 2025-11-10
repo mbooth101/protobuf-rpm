@@ -7,9 +7,7 @@
 # Please, preserve the changelog entries
 #
 
-%if 0%{?fedora} >= 43
 ExcludeArch: %{ix86}
-%endif
 
 # Tests only run on manual build --with tests
 # Tests rely on MySQL version 5.6
