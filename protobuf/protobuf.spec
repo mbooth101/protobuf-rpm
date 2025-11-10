@@ -24,8 +24,8 @@ Name:           protobuf
 # NOTE: perl-Alien-ProtoBuf has an exact-version dependency on the version of
 # protobuf with which it was built; it therefore needs to be rebuilt even for
 # “patch” updates of protobuf.
-Version:        %{pb_version}
-Release:        1%{?dist}
+Version:        %{pb_cxx}.%{pb_version}
+Release:        2%{?dist}
 
 # The entire source is BSD-3-Clause, except the following files, which belong
 # to the build system; are unpackaged maintainer utility scripts; or are used
@@ -111,6 +111,7 @@ breaking deployed programs that are compiled against the "old" format.
 
 %package compiler
 Summary:        Protocol Buffers compiler
+Version:        %{pb_version}
 
 %description compiler
 This package contains Protocol Buffers compiler for all programming
@@ -155,6 +156,7 @@ This package installs development headers and libraries for C++.
 
 %package vim
 Summary:        Vim syntax highlighting for Google Protocol Buffers descriptions
+Version:        %{pb_version}
 BuildArch:      noarch
 # We don’t really need vim or vim-enhanced to be already installed in order to
 # install a plugin for it. We do need to depend on vim-filesystem, which
@@ -236,6 +238,7 @@ Protocol Buffer BOM POM.
 
 %package emacs
 Summary:        Emacs mode for Google Protocol Buffers descriptions
+Version:        %{pb_version}
 BuildArch:      noarch
 Requires:       emacs-filesystem >= %{_emacs_version}
 
@@ -428,6 +431,9 @@ install -p -m 0644 %{SOURCE2} %{buildroot}%{_emacs_sitestartdir}
 
 
 %changelog
+* Mon Nov 10 2025 Mat Booth <mat.booth@gmail.com> - 5.29.5-2
+- Use C++ version for main library and devel packages
+
 * Tue Nov 04 2025 Mat Booth <mat.booth@gmail.com> - 29.5-1
 - Update protobuf to 29.5
 - Drop upstreamed patches
